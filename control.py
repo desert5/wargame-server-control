@@ -2,11 +2,6 @@
 # Script managing deck assignments
 # coding=utf-8
 
-# Player dictionary structure:
-#   id:
-#   side:
-#   deck:
-
 import re
 from time import sleep
 from subprocess import call
