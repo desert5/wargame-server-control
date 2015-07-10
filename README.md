@@ -35,6 +35,8 @@ Workflow:
  - User operates, depending on the information about current state of the game 
  (gamestate var), players information (players dictionary, keys - player id) and information of event happened (handler function arguments)
  - User reacts with rcon commands via function rconCommand
+ - Several rcon commands are incapsulated in Player class, so user can just call player.change_deck() or player.kick()
+ - Methods, that perform rcon operations are called change* to differ from set*
  - User code intended to be placed in functions in "Custom actions" section 
  
 Notes:
