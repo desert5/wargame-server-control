@@ -34,8 +34,8 @@ Workflow:
 -------------------
  - User operates, depending on the information about current state of the game 
  (gamestate var), players information (players dictionary, keys - player id) and information of event happened (handler function arguments)
- - User code intended to be placed in functions in "Custom actions" section
- 
+ - User reacts with rcon commands via function rconCommand
+ - User code intended to be placed in functions in "Custom actions" section 
  
 Notes:
 ------------------

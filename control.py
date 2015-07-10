@@ -12,6 +12,20 @@ from enum import Enum
 from random import random
 from math import floor
 
+class Rcon:
+    def __init__(self):
+        self.rconPath = "mcrcon"
+        self.rconRemoteHost = "localhost"
+        self.rconRemotePort = "14885"
+        self.rconPassword = "password"
+
+    # Executes rcon command, incapsulating details
+    def exec(self, command):
+        execution_string = self.rconPath + ' -H ' + self.rconRemoteHost + ' -P ' + self.rconRemotePort + \
+            ' -p ' + self.rconPassword + ' "' + command + '"'
+        call(execution_string, shell=True)
+
+
 class Game:
     def __init__(self):
 
@@ -23,12 +37,8 @@ class Game:
         self.players = {}
         self.lastProcessedLine = self.find_starting_line
         self.gameState = GameState.Lobby
+        self.rcon = Rcon()
         self.info_run = True
-
-        self.rconPath = "mcrcon"
-        self.rconRemoteHost = "192.168.1.13"
-        self.rconRemotePort = "14885"
-        self.rconPassword = "password"
 
         self.map_pool = [
             "Destruction_2x2_port_Wonsan_Terrestre",
@@ -88,6 +98,9 @@ class Game:
     def on_player_side_change(self, playerid, playerside):
         pass
 
+    def on_player_name_change(self, playerid, playername):
+        pass
+
     def on_switch_to_game(self):
         pass
 
@@ -102,70 +115,87 @@ class Game:
     # -------------------------------------------
 
     def _on_player_connect(self, match_obj):
+
         playerid = match_obj.group(1)
-        self.init_player_data(playerid)
+        # Creating player data structure if not present
+        if not (playerid in self.players):
+            self.players[playerid] = Player(playerid)
 
         if not self.info_run:
             self.on_player_connect(playerid)
 
+    # ----------------------------------------------
     def _on_player_deck_set(self, match_obj):
 
         playerid = match_obj.group(1)
         playerdeck = match_obj.group(2)
 
-        self.players[playerid]['deck'] = playerdeck
+        self.players[playerid].set_deck(playerdeck)
 
         if not self.info_run:
             self.on_player_deck_set(playerid, playerdeck)
 
+    # ----------------------------------------------
     def _on_player_level_set(self, match_obj):
 
         playerid = match_obj.group(1)
         playerlevel = match_obj.group(2)
 
-        self.players[playerid]['level'] = int(playerlevel)
+        self.players[playerid].set_level(int(playerlevel))
 
         if not self.info_run:
             self.on_player_level_set(playerid, playerlevel)
 
+    # ----------------------------------------------
     def _on_player_elo_set(self, match_obj):
 
         playerid = match_obj.group(1)
         playerelo = match_obj.group(2)
 
-        self.players[playerid]['elo'] = float(playerelo)
+        self.players[playerid].set_elo(float(playerelo))
 
         if not self.info_run:
             self.on_player_elo_set(playerid, playerelo)
 
+    # ----------------------------------------------
     def _on_player_disconnect(self, match_obj):
 
         playerid = match_obj.group(1)
 
         del self.players[playerid]
 
+    # ----------------------------------------------
     def _on_player_side_change(self, match_obj):
 
         playerid = match_obj.group(1)
         playerside = match_obj.group(2)
-
-        self.players[playerid]['side'] = Side.Redfor if playerside == '1' else Side.Bluefor
+        self.players[playerid].set_side(Side.Redfor if playerside == '1' else Side.Bluefor)
 
         if not self.info_run:
             self.on_player_side_change(playerid, playerside)
 
+    # ----------------------------------------------
+    def _on_player_name_change(self, match_obj):
+
+        playerid = match_obj.group(1)
+        playername = match_obj.group(2)
+        self.players[playerid].set_name(playername)
+
+    # ----------------------------------------------
     def _on_switch_to_game(self, matchObj):
         self.gameState = GameState.Game
 
         if not self.info_run:
             self.on_switch_to_game()
 
+    # ----------------------------------------------
     def _on_switch_to_debriefing(self, matchObj):
         self.gameState = GameState.Debriefing
 
         if not self.info_run:
             self.on_switch_to_debriefing()
 
+    # ----------------------------------------------
     def _on_switch_to_lobby(self, matchObj):
         self.gameState = GameState.Lobby
 
@@ -182,6 +212,7 @@ class Game:
         self.register_event('Client ([0-9]+) variable PlayerLevel set to "(.*)"', self._on_player_level_set)
         self.register_event('Client ([0-9]+) variable PlayerElo set to "(.*)"', self._on_player_elo_set)
         self.register_event('Client ([0-9]+) variable PlayerAlliance set to "([0-9])"', self._on_player_side_change)
+        self.register_event('Client ([0-9]+) variable PlayerName set to "(.*)"', self._on_player_name_change)
         self.register_event('Disconnecting client ([0-9]+)', self._on_player_disconnect)
         self.register_event('Entering in loading phase state', self._on_switch_to_game)
         self.register_event('Entering in debriephing phase state', self._on_switch_to_debriefing)
@@ -198,46 +229,34 @@ class Game:
         general_red_deck = "tOAcF6LTLwXEYZMocldI1qnDBZdjgqZZZKW4aUMuHEbSSRMWR2SyIWytaL9KelYE/A=="
 
         for playerID, player in self.players.items():
-            if player['side'] == Side.Bluefor:
-                if player['deck'] != general_blue_deck:
-                    self.rcon_command("setpvar " + playerID + " PlayerDeckContent " + general_blue_deck)
+            if player.get_side() == Side.Bluefor:
+                if player.get_deck() != general_blue_deck:
+                    player.change_deck(general_blue_deck)
 
-            if player['side'] == Side.Redfor:
-                if player['deck'] != general_red_deck:
-                    self.rcon_command("setpvar " + playerID + " PlayerDeckContent " + general_red_deck)
+            if player.get_side() == Side.Redfor:
+                if player.get_deck() != general_red_deck:
+                    player.change_deck(general_red_deck)
 
     # Rotates maps from the pool
     def map_random_rotate(self):
         self.currentMapId = floor(len(self.map_pool) * random())
 
         print("Rotating map to " + self.map_pool[self.currentMapId])
-        self.rcon_command("setsvar Map " + self.map_pool[self.currentMapId])
+        self.rcon.exec("setsvar Map " + self.map_pool[self.currentMapId])
 
     # Kicks players below certain level
     def limit_level(self, playerid, playerlevel):
         if int(playerlevel) < 7:
-            print("Player level is too low: " + playerlevel + ". Min is 10. Kicking...")
-            self.rcon_command("kick " + playerid)
+            print("Player level is too low: " + playerlevel + ". Min is 7. Kicking...")
+            self.players[playerid].kick()
 
     # -------------------------------------------
     # Utility functions
     # -------------------------------------------
 
-    # Executes rcon command, incapsulating details
-    def rcon_command(self, command):
-        execution_string = self.rconPath + ' -H ' + self.rconRemoteHost + ' -P ' + self.rconRemotePort + \
-            ' -p ' + self.rconPassword + ' "' + command + '"'
-
-        call(execution_string, shell=True)
-
     # Registers event handler for a certain log entry
     def register_event(self, regex, handler):
         self.events[re.compile(regex)] = handler
-
-    # Init player data structure    
-    def init_player_data(self, playerid):
-        if not (playerid in self.players):
-            self.players[playerid] = {'id': playerid, 'side': Side.Bluefor, 'deck': '', 'level': 0, 'elo': 0.0}
 
     # Founds last time when there were 0 players on server    
     @property
@@ -263,6 +282,82 @@ class Game:
                             pair[1](match)
                             break
                     self.lastProcessedLine += 1
+
+
+# ------------------------------------
+# Player data structure
+# Incapsulate player data manipulation
+# ------------------------------------
+
+class Player:
+    def __init__(self, playerid):
+        self._id = playerid
+        self._side = Side.Bluefor
+        self._deck = ""
+        self._level = 0
+        self._elo = 0.0
+        self._name = ""
+
+        self.rcon = Rcon()
+
+    # Getters
+    def get_id(self):
+        return self._id
+
+    def get_side(self):
+        return self._side
+
+    def get_deck(self):
+        return self._deck
+
+    def get_level(self):
+        return self._level
+
+    def get_elo(self):
+        return self._elo
+
+    def get_name(self):
+        return self._name
+
+    # Setters
+    def set_side(self, side):
+        self._side = side
+
+    def set_deck(self, deck):
+        self._deck = deck
+
+    def set_level(self, level):
+        self._level = level
+
+    def set_elo(self, elo):
+        self._elo = elo
+
+    def set_name(self, name):
+        self._name = name
+
+    # ------------------------------
+    # Manipulation logic for the player
+    # ------------------------------
+
+    # ------------------------------------------
+    # Function to change player`s side
+    # side: side you want to assign to a player
+    # ------------------------------------------
+    def change_side(self, side):
+        self.rcon.exec("setpvar " + self._id + " PlayerAlliance " + str(side))
+
+    # ------------------------------------------
+    # Function to change player`s deck
+    # deck: deck you want to assign to a player
+    # ------------------------------------------
+    def change_deck(self, deck):
+        self.rcon.exec("setpvar " + self._id + " PlayerDeckContent " + deck)
+
+    def kick(self):
+        self.rcon.exec("kick " + self._id)
+
+    def ban(self):
+        self.rcon.exec("ban " + self._id)
 
 
 # Sides definition
