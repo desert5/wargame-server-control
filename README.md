@@ -21,7 +21,7 @@ Usage:
  
 Principle of work:
 -------------------
- - Script reads server config and finds the last line, when there was nobody on the server
+ - Script reads server log and finds the last line, when there was nobody on the server
  - Then it starts to accumulate infomation about present state, by analyzing later log entries
  - Each log line is compared with registered masks (in register_events) and, if matches, fires a service event handler
  - Service event handler updates internal information structures about current game state
