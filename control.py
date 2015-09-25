@@ -1,7 +1,7 @@
 #!/usr/local/bin/python3
 # coding=utf-8
 # --------------------------------------------------
-# Wargame server control script
+# Wargame Server control script
 # Author : DesertEagle
 # --------------------------------------------------
 
@@ -13,16 +13,17 @@ from random import random
 from math import floor
 
 class Rcon:
-    def __init__(self):
-        self.rconPath = "mcrcon"
-        self.rconRemoteHost = "localhost"
-        self.rconRemotePort = "14885"
-        self.rconPassword = "password"
+
+    rconPath = "mcrcon"
+    rconRemoteHost = "localhost"
+    rconRemotePort = "14885"
+    rconPassword = "password"
 
     # Executes rcon command, incapsulating details
-    def exec(self, command):
-        execution_string = self.rconPath + ' -H ' + self.rconRemoteHost + ' -P ' + self.rconRemotePort + \
-            ' -p ' + self.rconPassword + ' "' + command + '"'
+    @classmethod
+    def execute(cls, command):
+        execution_string = cls.rconPath + ' -H ' + cls.rconRemoteHost + ' -P ' + cls.rconRemotePort + \
+            ' -p ' + cls.rconPassword + ' "' + command + '"'
         call(execution_string, shell=True)
 
 
@@ -35,9 +36,10 @@ class Game:
 
         self.events = {}
         self.players = {}
-        self.lastProcessedLine = self.find_starting_line
+        self.lastProcessedLine = self.starting_line
         self.gameState = GameState.Lobby
         self.info_run = True
+        self.register_events()
 
         self.map_pool = [
             "Destruction_2x2_port_Wonsan_Terrestre",
@@ -55,8 +57,6 @@ class Game:
             "Destruction_3x3_Pyeongtaek"
         ]
         self.currentMapId = -1
-
-        self.register_events()
 
     # Main loop
     def main(self):
@@ -136,13 +136,20 @@ class Game:
         self.currentMapId = floor(len(self.map_pool) * random())
 
         print("Rotating map to " + self.map_pool[self.currentMapId])
-        server.change_map(self.map_pool[self.currentMapId])
+        Server.change_map(self.map_pool[self.currentMapId])
 
     # Kicks players below certain level
     def limit_level(self, playerid, playerlevel):
-        if int(playerlevel) < 7:
-            print("Player level is too low: " + playerlevel + ". Min is 7. Kicking...")
+        if playerlevel < 7:
+            print("Player level is too low: " + str(playerlevel) + ". Min is 7. Kicking...")
             self.players[playerid].kick()
+
+
+
+
+
+
+
 
     # -------------------------------------------
     # Service event handlers
@@ -178,7 +185,7 @@ class Game:
         self.players[playerid].set_level(int(playerlevel))
 
         if not self.info_run:
-            self.on_player_level_set(playerid, playerlevel)
+            self.on_player_level_set(playerid, int(playerlevel))
 
     # ----------------------------------------------
     def _on_player_elo_set(self, match_obj):
@@ -266,9 +273,9 @@ class Game:
     def register_event(self, regex, handler):
         self.events[re.compile(regex)] = handler
 
-    # Founds last time when there were 0 players on server    
+    # Founds last time when there were 0 players on server
     @property
-    def find_starting_line(self):
+    def starting_line(self):
         linefound = -1
         with open("serverlog.txt", encoding='utf-8') as logfile:
             for lineNumber, line in enumerate(logfile):
@@ -350,31 +357,34 @@ class Player:
     # side: side you want to assign to a player
     # ------------------------------------------
     def change_side(self, side):
-        rcon.exec("setpvar " + self._id + " PlayerAlliance " + str(side))
+        Rcon.execute("setpvar " + self._id + " PlayerAlliance " + str(side))
 
     # ------------------------------------------
     # Function to change player`s deck
     # deck: deck you want to assign to a player
     # ------------------------------------------
     def change_deck(self, deck):
-        rcon.exec("setpvar " + self._id + " PlayerDeckContent " + deck)
+        Rcon.execute("setpvar " + self._id + " PlayerDeckContent " + deck)
 
     def kick(self):
-        rcon.exec("kick " + self._id)
+        Rcon.execute("kick " + self._id)
 
     def ban(self):
-        rcon.exec("ban " + self._id)
+        Rcon.execute("ban " + self._id)
 
 # ------------------------------------
 # Server data structure
 # Incapsulates server manipulation
 # ------------------------------------
 class Server:
-    def change_map(self, servermap):
-        rcon.exec("setsvar Map " + servermap)
 
-    def change_name(self, name):
-        rcon.exec("setsvar ServerName " + name)
+    @classmethod
+    def change_map(cls, mapname):
+        Rcon.execute("setsvar Map " + mapname)
+
+    @classmethod
+    def change_name(cls, name):
+        Rcon.execute("setsvar ServerName " + name)
 
 
 # Sides definition
@@ -390,6 +400,4 @@ class GameState(Enum):
 
 # Starting everything
 if __name__ == '__main__':
-    rcon = Rcon()
-    server = Server()
     Game().main()
