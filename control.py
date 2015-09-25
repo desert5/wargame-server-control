@@ -36,12 +36,12 @@ class Game:
 
         self.events = {}
         self.players = {}
-        self.lastProcessedLine = self.starting_line
+        self.lastProcessedLine = self.get_starting_line()
         self.gameState = GameState.Lobby
-        self.info_run = True
+        self.infoRun = True
         self.register_events()
 
-        self.map_pool = [
+        self.mapPool = [
             "Destruction_2x2_port_Wonsan_Terrestre",
             "Destruction_2x3_Hwaseong",
             "Destruction_2x3_Esashi",
@@ -69,7 +69,7 @@ class Game:
         self.update()
 
         print("Gather information run is over")
-        self.info_run = False
+        self.infoRun = False
 
         print("Server control started")
         while True:
@@ -131,10 +131,10 @@ class Game:
 
     # Rotates maps from the pool
     def map_random_rotate(self):
-        self.currentMapId = floor(len(self.map_pool) * random())
+        self.currentMapId = floor(len(self.mapPool) * random())
 
-        print("Rotating map to " + self.map_pool[self.currentMapId])
-        Server.change_map(self.map_pool[self.currentMapId])
+        print("Rotating map to " + self.mapPool[self.currentMapId])
+        Server.change_map(self.mapPool[self.currentMapId])
 
     # Kicks players below certain level
     def limit_level(self, playerid, playerlevel):
@@ -161,7 +161,7 @@ class Game:
         if not (playerid in self.players):
             self.players[playerid] = Player(playerid)
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_player_connect(playerid)
 
     # ----------------------------------------------
@@ -172,7 +172,7 @@ class Game:
 
         self.players[playerid].set_deck(playerdeck)
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_player_deck_set(playerid, playerdeck)
 
     # ----------------------------------------------
@@ -183,7 +183,7 @@ class Game:
 
         self.players[playerid].set_level(int(playerlevel))
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_player_level_set(playerid, int(playerlevel))
 
     # ----------------------------------------------
@@ -194,7 +194,7 @@ class Game:
 
         self.players[playerid].set_elo(float(playerelo))
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_player_elo_set(playerid, playerelo)
 
     # ----------------------------------------------
@@ -202,7 +202,7 @@ class Game:
 
         playerid = match_obj.group(1)
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_player_disconnect(playerid)
 
         del self.players[playerid]
@@ -214,7 +214,7 @@ class Game:
         playerside = match_obj.group(2)
         self.players[playerid].set_side(Side.Redfor if playerside == '1' else Side.Bluefor)
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_player_side_change(playerid, playerside)
 
     # ----------------------------------------------
@@ -224,28 +224,28 @@ class Game:
         playername = match_obj.group(2)
         self.players[playerid].set_name(playername)
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_player_name_change(playerid, playername)
 
     # ----------------------------------------------
     def _on_switch_to_game(self, match_obj):
         self.gameState = GameState.Game
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_switch_to_game()
 
     # ----------------------------------------------
     def _on_switch_to_debriefing(self, match_obj):
         self.gameState = GameState.Debriefing
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_switch_to_debriefing()
 
     # ----------------------------------------------
     def _on_switch_to_lobby(self, match_obj):
         self.gameState = GameState.Lobby
 
-        if not self.info_run:
+        if not self.infoRun:
             self.on_switch_to_lobby()
 
     # ---------------------------------------------
@@ -273,8 +273,7 @@ class Game:
         self.events[re.compile(regex)] = handler
 
     # Founds last time when there were 0 players on server
-    @property
-    def starting_line(self):
+    def get_starting_line(self):
         linefound = -1
         with open("serverlog.txt", encoding='utf-8') as logfile:
             for lineNumber, line in enumerate(logfile):
