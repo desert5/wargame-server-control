@@ -54,22 +54,20 @@ class Game:
             "Destruction_3x2_Sangju",
             "Destruction_3x2_Montagne_3",
             "Destruction_3x3_Muju",
-            "Destruction_3x3_Pyeongtaek"
+            "Destruction_3x3_Pyeongtaek",
+            "Destruction_3x3_Gangjin"
         ]
         self.currentMapId = -1
 
     # Main loop
     def main(self):
-
         print("Server control script started")
 
-        # Gather information run
         print("Gather information run")
         print("Starting from line " + str(self.lastProcessedLine))
 
         self.update()
 
-        # Gather information run is over
         print("Gather information run is over")
         self.info_run = False
 
@@ -140,8 +138,9 @@ class Game:
 
     # Kicks players below certain level
     def limit_level(self, playerid, playerlevel):
-        if playerlevel < 7:
-            print("Player level is too low: " + str(playerlevel) + ". Min is 7. Kicking...")
+        limit = 7
+        if playerlevel < limit:
+            print("Player level is too low: " + str(playerlevel) + ". Min is " + str(limit) + ". Kicking...")
             self.players[playerid].kick()
 
 
