@@ -12,7 +12,12 @@ from enum import Enum
 from random import random
 from math import floor
 
+
 class Rcon:
+
+    # -------------------------------------------
+    # Rcon connection settings
+    # -------------------------------------------
 
     rconPath = "mcrcon"
     rconRemoteHost = "localhost"
@@ -28,53 +33,6 @@ class Rcon:
 
 
 class Game:
-    def __init__(self):
-
-        # -------------------------------------------
-        # Initialization
-        # -------------------------------------------
-
-        self.events = {}
-        self.players = {}
-        self.lastProcessedLine = self.get_starting_line()
-        self.gameState = GameState.Lobby
-        self.infoRun = True
-        self.register_events()
-
-        self.mapPool = [
-            "Destruction_2x2_port_Wonsan_Terrestre",
-            "Destruction_2x3_Hwaseong",
-            "Destruction_2x3_Esashi",
-            "Destruction_2x3_Boseong",
-            "Destruction_2x3_Tohoku",
-            "Destruction_2x3_Anbyon",
-            "Destruction_3x2_Boryeong_Terrestre",
-            "Destruction_3x2_Taean",
-            "Destruction_3x2_Taebuko",
-            "Destruction_3x2_Sangju",
-            "Destruction_3x2_Montagne_3",
-            "Destruction_3x3_Muju",
-            "Destruction_3x3_Pyeongtaek",
-            "Destruction_3x3_Gangjin"
-        ]
-        self.currentMapId = -1
-
-    # Main loop
-    def main(self):
-        print("Server control script started")
-
-        print("Gather information run")
-        print("Starting from line " + str(self.lastProcessedLine))
-
-        self.update()
-
-        print("Gather information run is over")
-        self.infoRun = False
-
-        print("Server control started")
-        while True:
-            self.update()
-            sleep(0.5)
 
     # -------------------------------------------
     # User event handlers
@@ -131,10 +89,27 @@ class Game:
 
     # Rotates maps from the pool
     def map_random_rotate(self):
-        self.currentMapId = floor(len(self.mapPool) * random())
 
-        print("Rotating map to " + self.mapPool[self.currentMapId])
-        Server.change_map(self.mapPool[self.currentMapId])
+        map_pool = [
+            "Destruction_2x2_port_Wonsan_Terrestre",
+            "Destruction_2x3_Hwaseong",
+            "Destruction_2x3_Esashi",
+            "Destruction_2x3_Boseong",
+            "Destruction_2x3_Tohoku",
+            "Destruction_2x3_Anbyon",
+            "Destruction_3x2_Boryeong_Terrestre",
+            "Destruction_3x2_Taean",
+            "Destruction_3x2_Taebuko",
+            "Destruction_3x2_Sangju",
+            "Destruction_3x2_Montagne_3",
+            "Destruction_3x3_Muju",
+            "Destruction_3x3_Pyeongtaek",
+            "Destruction_3x3_Gangjin"
+        ]
+
+        self.currentMapId = floor(len(map_pool) * random())
+        Server.change_map(map_pool[self.currentMapId])
+        print("Rotating map to " + map_pool[self.currentMapId])
 
     # Kicks players below certain level
     def limit_level(self, playerid, playerlevel):
@@ -144,11 +119,9 @@ class Game:
             self.players[playerid].kick()
 
 
-
-
-
-
-
+# -----------------------------------------------------------------------------------------------------------------------
+# --------------------------------------- INTERNAL IMPLEMENTATION DETAILS ----------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 
     # -------------------------------------------
     # Service event handlers
@@ -268,12 +241,44 @@ class Game:
     # Utility functions
     # -------------------------------------------
 
+    def __init__(self):
+
+        # -------------------------------------------
+        # Initialization
+        # -------------------------------------------
+
+        self.events = {}
+        self.players = {}
+        self.lastProcessedLine = self.get_starting_line()
+        self.gameState = GameState.Lobby
+        self.infoRun = True
+        self.register_events()
+        self.currentMapId = -1
+
+    # Main loop
+    def main(self):
+        print("Server control script started")
+
+        print("Gather information run")
+        print("Starting from line " + str(self.lastProcessedLine))
+
+        self.update()
+
+        print("Gather information run is over")
+        self.infoRun = False
+
+        print("Server control started")
+        while True:
+            self.update()
+            sleep(0.5)
+
     # Registers event handler for a certain log entry
     def register_event(self, regex, handler):
         self.events[re.compile(regex)] = handler
 
-    # Founds last time when there were 0 players on server
-    def get_starting_line(self):
+    # Finds last time when there were 0 players on server
+    @staticmethod
+    def get_starting_line():
         linefound = -1
         with open("serverlog.txt", encoding='utf-8') as logfile:
             for lineNumber, line in enumerate(logfile):
@@ -370,10 +375,13 @@ class Player:
     def ban(self):
         Rcon.execute("ban " + self._id)
 
+
 # ------------------------------------
 # Server data structure
 # Incapsulates server manipulation
 # ------------------------------------
+
+
 class Server:
 
     @classmethod
