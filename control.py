@@ -1,11 +1,13 @@
 #!/usr/local/bin/python3
 # coding=utf-8
-# --------------------------------------------------
-# Wargame Server control script
-# Author : DesertEagle
-# --------------------------------------------------
+"""
+ Wargame Server control script
+ Author : DesertEagle
+
+"""
 
 import re
+import os
 from time import sleep
 from subprocess import call
 from enum import Enum
@@ -14,25 +16,22 @@ from math import floor
 
 
 class Rcon:
-
-    # -------------------------------------------
-    # Rcon connection settings
-    # -------------------------------------------
-
+    """ Rcon connection settings """
     rconPath = "mcrcon"
     rconRemoteHost = "localhost"
     rconRemotePort = "14885"
     rconPassword = "password"
 
-    # Executes rcon command, incapsulating details
     @classmethod
     def execute(cls, command):
+        """Execute rcon command, incapsulating details"""
         execution_string = cls.rconPath + ' -H ' + cls.rconRemoteHost + ' -P ' + cls.rconRemotePort + \
             ' -p ' + cls.rconPassword + ' "' + command + '"'
         call(execution_string, shell=True)
 
 
 class Game:
+    """Main class, containing game process manipulation"""
 
     # -------------------------------------------
     # User event handlers
@@ -87,9 +86,8 @@ class Game:
                 if player.get_deck() != general_red_deck:
                     player.change_deck(general_red_deck)
 
-    # Rotates maps from the pool
     def map_random_rotate(self):
-
+        """Rotate maps from the pool"""
         map_pool = [
             "Destruction_2x2_port_Wonsan_Terrestre",
             "Destruction_2x3_Hwaseong",
@@ -111,8 +109,8 @@ class Game:
         Server.change_map(map_pool[self.currentMapId])
         print("Rotating map to " + map_pool[self.currentMapId])
 
-    # Kicks players below certain level
     def limit_level(self, playerid, playerlevel):
+        """Kick players below certain level"""
         limit = 7
         if playerlevel < limit:
             print("Player level is too low: " + str(playerlevel) + ". Min is " + str(limit) + ". Kicking...")
@@ -242,25 +240,32 @@ class Game:
     # -------------------------------------------
 
     def __init__(self):
-
-        # -------------------------------------------
-        # Initialization
-        # -------------------------------------------
-
         self.events = {}
         self.players = {}
-        self.lastProcessedLine = self.get_starting_line()
         self.gameState = GameState.Lobby
+        self.logfileStream = open("serverlog.txt", "r", encoding="utf-8")
         self.infoRun = True
         self.register_events()
         self.currentMapId = -1
 
-    # Main loop
+        # Getting starting line
+        while True:
+            line = self.logfileStream.readline()
+            if not line:
+                # 0 player line is not found, reseting to the start of file
+                self.logfileStream.seek(0, os.SEEK_SET)
+                break
+
+            if line == u"Variable NbPlayer set to \"0\"\n":
+                # 0 player line is found, keeping this state of the stream
+                break
+
+    def __del__(self):
+        self.logfileStream.close()
+
     def main(self):
         print("Server control script started")
-
         print("Gather information run")
-        print("Starting from line " + str(self.lastProcessedLine))
 
         self.update()
 
@@ -272,42 +277,30 @@ class Game:
             self.update()
             sleep(0.5)
 
-    # Registers event handler for a certain log entry
     def register_event(self, regex, handler):
+        """Register event handler for a certain log entry"""
         self.events[re.compile(regex)] = handler
 
-    # Finds last time when there were 0 players on server
-    @staticmethod
-    def get_starting_line():
-        linefound = -1
-        with open("serverlog.txt", encoding='utf-8') as logfile:
-            for lineNumber, line in enumerate(logfile):
-                if line == u"Variable NbPlayer set to \"0\"\n":
-                    linefound = lineNumber
-
-        return linefound
-
-    # Parses log and calls the event handler on appropriate events
     def update(self):
-
-        with open("serverlog.txt", encoding='utf-8') as logfile:
-            for line_number, line in enumerate(logfile):
-                if line_number > self.lastProcessedLine:
-                    # Test against event expressions
-                    for pair in self.events.items():
-                        match = pair[0].match(line)
-                        if match:
-                            pair[1](match)
-                            break
-                    self.lastProcessedLine += 1
-
-
-# ------------------------------------
-# Player data structure
-# Incapsulates player data manipulation
-# ------------------------------------
+        """Parse log and trigger event handler"""
+        while True:
+            line = self.logfileStream.readline()
+            if line:
+                # Test against event expressions
+                for pair in self.events.items():
+                    match = pair[0].match(line)
+                    if match:
+                        pair[1](match)
+                        break
+            else:
+                break
 
 class Player:
+    """
+    Player data structure
+    Incapsulates player data manipulation
+    """
+
     def __init__(self, playerid):
         self._id = playerid
         self._side = Side.Bluefor
@@ -355,34 +348,28 @@ class Player:
     # Manipulation logic for the player
     # ------------------------------
 
-    # ------------------------------------------
-    # Function to change player`s side
-    # side: side you want to assign to a player
-    # ------------------------------------------
     def change_side(self, side):
+        """Forcibly change player's side"""
         Rcon.execute("setpvar " + self._id + " PlayerAlliance " + str(side))
 
-    # ------------------------------------------
-    # Function to change player`s deck
-    # deck: deck you want to assign to a player
-    # ------------------------------------------
     def change_deck(self, deck):
+        """Forcibly assign new deck to a player"""
         Rcon.execute("setpvar " + self._id + " PlayerDeckContent " + deck)
 
     def kick(self):
+        """Kick player"""
         Rcon.execute("kick " + self._id)
 
     def ban(self):
+        """Ban player"""
         Rcon.execute("ban " + self._id)
 
 
-# ------------------------------------
-# Server data structure
-# Incapsulates server manipulation
-# ------------------------------------
-
-
 class Server:
+    """
+    Server data structure
+    Incapsulates server manipulation
+    """
 
     @classmethod
     def change_map(cls, mapname):
@@ -393,7 +380,6 @@ class Server:
         Rcon.execute("setsvar ServerName " + name)
 
 
-# Sides definition
 class Side(Enum):
     Bluefor = 0
     Redfor = 1
